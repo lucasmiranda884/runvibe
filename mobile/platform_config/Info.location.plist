@@ -1,0 +1,9 @@
+<!-- Mesclar dentro de <dict> em ios/Runner/Info.plist -->
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>O RunVibe usa sua localização para registrar distância, ritmo e rota.</string>
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>O RunVibe precisa continuar registrando a corrida com a tela bloqueada.</string>
+<key>UIBackgroundModes</key>
+<array>
+    <string>location</string>
+</array>

@@ -1,0 +1,11 @@
+target/
+.idea/
+.vscode/
+*.iml
+.env
+*.log
+*.jks
+*.keystore
+**/key.properties
+*.apk
+**/build/

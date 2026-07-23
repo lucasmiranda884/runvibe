@@ -1,0 +1,10 @@
+.git
+.agents
+.idea
+.vscode
+mobile
+target
+*.apk
+*.jks
+*.keystore
+**/key.properties
