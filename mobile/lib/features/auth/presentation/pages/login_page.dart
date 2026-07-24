@@ -98,7 +98,8 @@ class _LoginPageState extends State<LoginPage> {
                       if (state.status == AuthStatus.loading) ...[
                         const SizedBox(height: 10),
                         const Text(
-                          'No plano gratuito, o primeiro acesso pode levar até 1 minuto.',
+                          'Conectando ao servidor gratuito. O primeiro acesso '
+                          'do dia pode levar até 3 minutos.',
                           textAlign: TextAlign.center,
                         ),
                       ],

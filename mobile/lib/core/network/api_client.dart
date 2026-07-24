@@ -8,9 +8,9 @@ Dio createDio(AuthInterceptor authInterceptor) {
   final dio = Dio(
     BaseOptions(
       baseUrl: AppConfig.apiBaseUrl,
-      connectTimeout: const Duration(seconds: 90),
-      receiveTimeout: const Duration(seconds: 90),
-      sendTimeout: const Duration(seconds: 90),
+      connectTimeout: const Duration(minutes: 3),
+      receiveTimeout: const Duration(minutes: 3),
+      sendTimeout: const Duration(minutes: 3),
       contentType: Headers.jsonContentType,
     ),
   );

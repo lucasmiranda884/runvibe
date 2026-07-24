@@ -74,8 +74,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         409 => 'Este e-mail já possui uma conta.',
         _
             when error.type == DioExceptionType.connectionTimeout ||
-                error.type == DioExceptionType.receiveTimeout =>
-          'O servidor gratuito está acordando. Aguarde alguns segundos e tente novamente.',
+                error.type == DioExceptionType.receiveTimeout ||
+                error.type == DioExceptionType.connectionError =>
+          'O servidor gratuito não respondeu após 3 minutos. Verifique a internet e tente novamente.',
         _ => 'Servidor indisponível. Sua internet está ativa? Tente novamente.',
       };
       emit(AuthState(status: AuthStatus.failure, message: message));
