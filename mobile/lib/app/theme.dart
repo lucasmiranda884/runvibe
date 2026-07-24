@@ -51,5 +51,20 @@ abstract final class RunVibeTheme {
     ),
     useMaterial3: true,
     scaffoldBackgroundColor: const Color(0xFF10120E),
+    cardTheme: const CardThemeData(
+      elevation: 0,
+      color: Color(0xFF1A1E17),
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF30362C)),
+      ),
+    ),
+    navigationBarTheme: const NavigationBarThemeData(
+      height: 68,
+      backgroundColor: Color(0xFF161914),
+      indicatorColor: Color(0xFF4D6727),
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+    ),
   );
 }

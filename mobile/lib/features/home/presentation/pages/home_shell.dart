@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:runvibe_mobile/core/di/injection.dart';
+import 'package:runvibe_mobile/features/coach/presentation/pages/coach_page.dart';
+import 'package:runvibe_mobile/features/races/presentation/pages/races_page.dart';
+import 'package:runvibe_mobile/features/settings/presentation/pages/settings_page.dart';
 import 'package:runvibe_mobile/features/tracking/presentation/bloc/tracking_bloc.dart';
 import 'package:runvibe_mobile/features/tracking/presentation/pages/tracking_page.dart';
 
@@ -29,9 +32,14 @@ class _HomeShellState extends State<HomeShell> {
       body: IndexedStack(
         index: _index,
         children: [
-          const _FeedPage(),
-          const _ProgressPage(),
+          _FeedPage(
+            onRecord: () => setState(() => _index = 2),
+            onCoach: () => setState(() => _index = 1),
+            onRaces: () => setState(() => _index = 3),
+          ),
+          const CoachPage(),
           BlocProvider.value(value: _trackingBloc, child: const TrackingPage()),
+          const RacesPage(),
           const _ProfilePage(),
         ],
       ),
@@ -45,14 +53,19 @@ class _HomeShellState extends State<HomeShell> {
             label: 'Início',
           ),
           NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights_rounded),
-            label: 'Progresso',
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome_rounded),
+            label: 'Treinador',
           ),
           NavigationDestination(
             icon: Icon(Icons.radio_button_checked),
             selectedIcon: Icon(Icons.radio_button_checked),
             label: 'Gravar',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.emoji_events_outlined),
+            selectedIcon: Icon(Icons.emoji_events_rounded),
+            label: 'Provas',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
@@ -66,7 +79,14 @@ class _HomeShellState extends State<HomeShell> {
 }
 
 class _FeedPage extends StatefulWidget {
-  const _FeedPage();
+  const _FeedPage({
+    required this.onRecord,
+    required this.onCoach,
+    required this.onRaces,
+  });
+  final VoidCallback onRecord;
+  final VoidCallback onCoach;
+  final VoidCallback onRaces;
 
   @override
   State<_FeedPage> createState() => _FeedPageState();
@@ -105,12 +125,12 @@ class _FeedPageState extends State<_FeedPage> {
                     const Spacer(),
                     _RoundIconButton(
                       icon: Icons.notifications_none_rounded,
-                      onTap: () {},
+                      onTap: () => _comingSoon(context, 'Notificações'),
                     ),
                     const SizedBox(width: 8),
                     _RoundIconButton(
                       icon: Icons.person_add_alt_1_outlined,
-                      onTap: () {},
+                      onTap: () => _comingSoon(context, 'Buscar corredores'),
                     ),
                   ],
                 ),
@@ -122,11 +142,27 @@ class _FeedPageState extends State<_FeedPage> {
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   scrollDirection: Axis.horizontal,
-                  children: const [
-                    _QuickAction(Icons.directions_run_rounded, 'Correr'),
-                    _QuickAction(Icons.route_rounded, 'Rotas'),
-                    _QuickAction(Icons.groups_2_outlined, 'Clubes'),
-                    _QuickAction(Icons.emoji_events_outlined, 'Desafios'),
+                  children: [
+                    _QuickAction(
+                      Icons.directions_run_rounded,
+                      'Correr',
+                      widget.onRecord,
+                    ),
+                    _QuickAction(
+                      Icons.auto_awesome_rounded,
+                      'Treinos',
+                      widget.onCoach,
+                    ),
+                    _QuickAction(
+                      Icons.emoji_events_outlined,
+                      'Provas',
+                      widget.onRaces,
+                    ),
+                    _QuickAction(
+                      Icons.groups_2_outlined,
+                      'Clubes',
+                      () => _comingSoon(context, 'Clubes'),
+                    ),
                   ],
                 ),
               ),
@@ -179,91 +215,6 @@ class _FeedPageState extends State<_FeedPage> {
   }
 }
 
-class _ProgressPage extends StatelessWidget {
-  const _ProgressPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text(
-            'Seu progresso',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Consistência vale mais que velocidade.',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 22),
-          Card(
-            color: const Color(0xFF11180F),
-            child: Padding(
-              padding: const EdgeInsets.all(22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'ESTA SEMANA',
-                    style: TextStyle(
-                      color: Color(0xFFB7F34A),
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: const [
-                      _DarkMetric(value: '0,0', label: 'quilômetros'),
-                      _DarkMetric(value: '0', label: 'atividades'),
-                      _DarkMetric(value: '0m', label: 'tempo'),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
-                  const LinearProgressIndicator(
-                    value: 0,
-                    minHeight: 8,
-                    borderRadius: BorderRadius.all(Radius.circular(20)),
-                    backgroundColor: Color(0xFF35402F),
-                    color: Color(0xFFB7F34A),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Meta semanal: 15 km',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const _SectionTile(
-            icon: Icons.calendar_month_rounded,
-            title: 'Calendário de treinos',
-            subtitle: 'Veja sua frequência e dias ativos',
-          ),
-          const SizedBox(height: 12),
-          const _SectionTile(
-            icon: Icons.speed_rounded,
-            title: 'Melhores esforços',
-            subtitle: 'Recordes de 1 km, 5 km, 10 km e mais',
-          ),
-          const SizedBox(height: 12),
-          const _SectionTile(
-            icon: Icons.checkroom_rounded,
-            title: 'Meus tênis',
-            subtitle: 'Controle de desgaste por quilometragem',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ProfilePage extends StatelessWidget {
   const _ProfilePage();
 
@@ -283,7 +234,9 @@ class _ProfilePage extends StatelessWidget {
               ),
               const Spacer(),
               IconButton.filledTonal(
-                onPressed: () {},
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
+                ),
                 icon: const Icon(Icons.settings_outlined),
               ),
             ],
@@ -330,7 +283,7 @@ class _ProfilePage extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: () => _comingSoon(context, 'Editar perfil'),
             icon: const Icon(Icons.edit_outlined),
             label: const Text('Editar perfil'),
           ),
@@ -436,13 +389,13 @@ class _ActivityCard extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
-                      onPressed: () {},
+                      onPressed: () => _comingSoon(context, 'Kudos'),
                       icon: const Icon(Icons.favorite_border_rounded),
                     ),
                     const Text('Kudos'),
                     const SizedBox(width: 12),
                     IconButton(
-                      onPressed: () {},
+                      onPressed: () => _comingSoon(context, 'Comentários'),
                       icon: const Icon(Icons.mode_comment_outlined),
                     ),
                     const Text('Comentar'),
@@ -572,9 +525,10 @@ class _RoundIconButton extends StatelessWidget {
 }
 
 class _QuickAction extends StatelessWidget {
-  const _QuickAction(this.icon, this.label);
+  const _QuickAction(this.icon, this.label, this.onTap);
   final IconData icon;
   final String label;
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 5),
@@ -582,15 +536,27 @@ class _QuickAction extends StatelessWidget {
       width: 76,
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: Colors.white,
-            child: Icon(icon, color: const Color(0xFF35551B)),
+          InkWell(
+            borderRadius: BorderRadius.circular(30),
+            onTap: onTap,
+            child: CircleAvatar(
+              radius: 26,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              child: Icon(icon, color: Theme.of(context).colorScheme.primary),
+            ),
           ),
           const SizedBox(height: 6),
           Text(label, style: const TextStyle(fontSize: 12)),
         ],
       ),
+    ),
+  );
+}
+
+void _comingSoon(BuildContext context, String feature) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('$feature estará disponível na próxima atualização.'),
     ),
   );
 }
@@ -633,32 +599,6 @@ class _MessageState extends StatelessWidget {
           ],
         ],
       ),
-    ),
-  );
-}
-
-class _DarkMetric extends StatelessWidget {
-  const _DarkMetric({required this.value, required this.label});
-  final String value;
-  final String label;
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-            fontSize: 24,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white60, fontSize: 12),
-        ),
-      ],
     ),
   );
 }

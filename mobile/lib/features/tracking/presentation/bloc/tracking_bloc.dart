@@ -155,6 +155,14 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
       emit(_inProgress());
     } on LocationPermissionException catch (error) {
       emit(TrackingInitial(error: error.message));
+    } catch (_) {
+      emit(
+        const TrackingInitial(
+          error:
+              'Não foi possível iniciar o GPS. Verifique localização, '
+              'notificações e bateria nas configurações.',
+        ),
+      );
     }
   }
 

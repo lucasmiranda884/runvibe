@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'package:dio/dio.dart';
 import 'package:equatable/equatable.dart';
 import 'package:runvibe_mobile/features/auth/data/auth_repository.dart';
 
@@ -65,6 +66,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       await action();
       emit(const AuthState(status: AuthStatus.authenticated));
+    } on DioException catch (error) {
+      final status = error.response?.statusCode;
+      final message = switch (status) {
+        400 => 'Confira os dados. A senha precisa ter pelo menos 8 caracteres.',
+        401 => 'E-mail ou senha incorretos.',
+        409 => 'Este e-mail já possui uma conta.',
+        _
+            when error.type == DioExceptionType.connectionTimeout ||
+                error.type == DioExceptionType.receiveTimeout =>
+          'O servidor gratuito está acordando. Aguarde alguns segundos e tente novamente.',
+        _ => 'Servidor indisponível. Sua internet está ativa? Tente novamente.',
+      };
+      emit(AuthState(status: AuthStatus.failure, message: message));
     } catch (_) {
       emit(
         const AuthState(

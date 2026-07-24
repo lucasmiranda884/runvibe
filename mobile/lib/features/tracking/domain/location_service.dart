@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:location/location.dart';
+import 'package:permission_handler/permission_handler.dart' as permissions;
 import 'package:runvibe_mobile/features/tracking/domain/foreground_tracking_service.dart';
 import 'package:runvibe_mobile/features/tracking/domain/models/gps_point_model.dart';
 
@@ -41,15 +44,23 @@ class LocationService {
       interval: 1000,
       distanceFilter: 3,
     );
-    final backgroundEnabled = await _location.enableBackgroundMode(
-      enable: true,
-    );
-    if (!backgroundEnabled) {
-      throw const LocationPermissionException(
-        'A localização em segundo plano é necessária para não perder a rota.',
-      );
+    // Android 10+ exige que a permissão em primeiro plano seja concedida antes
+    // da permissão "o tempo todo". A corrida não deve ser bloqueada caso o
+    // usuário escolha conceder a permissão de fundo depois.
+    if (Platform.isAndroid) {
+      final alwaysStatus = await permissions.Permission.locationAlways.status;
+      if (!alwaysStatus.isGranted) {
+        await permissions.Permission.locationAlways.request();
+      }
     }
+
     await _foregroundService.start();
+    try {
+      await _location.enableBackgroundMode(enable: true);
+    } catch (_) {
+      // O rastreamento em primeiro plano continua funcionando. A tela de
+      // configurações orienta o usuário a liberar "o tempo todo".
+    }
   }
 
   Stream<GPSPointModel> get points => _location.onLocationChanged.map(

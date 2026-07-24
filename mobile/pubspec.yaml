@@ -1,7 +1,7 @@
 name: runvibe_mobile
 description: Aplicativo mobile de corrida RunVibe.
 publish_to: none
-version: 1.0.1+2
+version: 1.1.0+3
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
@@ -17,8 +17,9 @@ dependencies:
   pretty_dio_logger: ^1.4.0
   location: ^10.0.1
   flutter_foreground_task: ^10.0.0
-  flutter_map: ^8.3.1
-  latlong2: ^0.9.1
+  maplibre_gl: ^0.26.2
+  permission_handler: ^12.0.1
+  url_launcher: ^6.3.2
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   go_router: ^17.3.0

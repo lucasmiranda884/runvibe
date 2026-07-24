@@ -95,6 +95,13 @@ class _LoginPageState extends State<LoginPage> {
                               )
                             : Text(_register ? 'Criar conta' : 'Entrar'),
                       ),
+                      if (state.status == AuthStatus.loading) ...[
+                        const SizedBox(height: 10),
+                        const Text(
+                          'No plano gratuito, o primeiro acesso pode levar até 1 minuto.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                       TextButton(
                         onPressed: () => setState(() => _register = !_register),
                         child: Text(
