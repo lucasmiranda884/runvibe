@@ -10,10 +10,17 @@ Instale Flutter 3.x com Dart 3.6+ e execute, na raiz `mobile`:
 flutter create --platforms=android,ios --org com.runvibe .
 flutter pub get
 flutter test
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080/api/v1/
+flutter run
 ```
 
-Em aparelho físico, substitua `10.0.2.2` pelo IP do computador na rede local.
+Por padrão, o aplicativo usa a API pública:
+`https://runvibe-api.onrender.com/api/v1/`.
+
+Para desenvolvimento local no emulador Android, sobrescreva o endereço:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080/api/v1/
+```
 Android e iOS bloqueiam HTTP puro por padrão. Libere tráfego local somente no build de
 desenvolvimento ou, preferencialmente, exponha a API por HTTPS.
 

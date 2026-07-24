@@ -18,6 +18,10 @@ mvn spring-boot:run
 A API inicia em `http://localhost:8080`. A documentação interativa fica em
 `http://localhost:8080/swagger-ui.html`.
 
+O ambiente gratuito publicado está disponível em
+`https://runvibe-api.onrender.com`. O health check público é
+`https://runvibe-api.onrender.com/actuator/health`.
+
 As configurações aceitam as variáveis `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
 `JWT_SECRET`, `JWT_EXPIRATION` e `SERVER_PORT`. Troque obrigatoriamente o segredo
 JWT padrão antes de publicar o serviço.
