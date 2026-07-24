@@ -228,7 +228,9 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
     if (state is! TrackingMetricsState || state is TrackingCompleted) return;
     _elapsed++;
     if (state is TrackingInProgress) {
-      _moving++;
+      if (_points.isNotEmpty && _points.last.speedMs >= .5) {
+        _moving++;
+      }
       emit(_inProgress());
     } else {
       emit(
@@ -271,6 +273,9 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
   Future<void> close() async {
     _timer?.cancel();
     await _gpsSubscription?.cancel();
+    if (state is TrackingMetricsState && state is! TrackingCompleted) {
+      await _location.stopBackgroundMode();
+    }
     return super.close();
   }
 }

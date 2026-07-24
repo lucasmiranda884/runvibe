@@ -17,10 +17,7 @@ final appRouter = GoRouter(
         child: const LoginPage(),
       ),
     ),
-    GoRoute(
-      path: '/home',
-      builder: (context, state) => const HomeShell(),
-    ),
+    GoRoute(path: '/home', builder: (context, state) => const HomeShell()),
     GoRoute(
       path: '/tracking',
       builder: (context, state) => BlocProvider(

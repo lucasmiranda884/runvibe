@@ -31,10 +31,7 @@ class _HomeShellState extends State<HomeShell> {
         children: [
           const _FeedPage(),
           const _ProgressPage(),
-          BlocProvider.value(
-            value: _trackingBloc,
-            child: const TrackingPage(),
-          ),
+          BlocProvider.value(value: _trackingBloc, child: const TrackingPage()),
           const _ProfilePage(),
         ],
       ),
@@ -280,9 +277,9 @@ class _ProfilePage extends StatelessWidget {
             children: [
               Text(
                 'Perfil',
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const Spacer(),
               IconButton.filledTonal(
@@ -297,7 +294,11 @@ class _ProfilePage extends StatelessWidget {
               CircleAvatar(
                 radius: 42,
                 backgroundColor: Color(0xFF11180F),
-                child: Icon(Icons.person_rounded, color: Colors.white, size: 44),
+                child: Icon(
+                  Icons.person_rounded,
+                  color: Colors.white,
+                  size: 44,
+                ),
               ),
               SizedBox(width: 18),
               Expanded(
@@ -306,7 +307,10 @@ class _ProfilePage extends StatelessWidget {
                   children: [
                     Text(
                       'Corredor RunVibe',
-                      style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     SizedBox(height: 4),
                     Text('Sua jornada começa agora'),
@@ -542,10 +546,7 @@ class _RunVibeWordmark extends StatelessWidget {
         ),
         child: Padding(
           padding: EdgeInsets.all(8),
-          child: Icon(
-            Icons.directions_run_rounded,
-            color: Color(0xFFB7F34A),
-          ),
+          child: Icon(Icons.directions_run_rounded, color: Color(0xFFB7F34A)),
         ),
       ),
       SizedBox(width: 9),
@@ -625,7 +626,10 @@ class _MessageState extends StatelessWidget {
           Text(subtitle, textAlign: TextAlign.center),
           if (action != null) ...[
             const SizedBox(height: 16),
-            TextButton(onPressed: action, child: const Text('Tentar novamente')),
+            TextButton(
+              onPressed: action,
+              child: const Text('Tentar novamente'),
+            ),
           ],
         ],
       ),
@@ -650,7 +654,10 @@ class _DarkMetric extends StatelessWidget {
             fontSize: 24,
           ),
         ),
-        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white60, fontSize: 12),
+        ),
       ],
     ),
   );

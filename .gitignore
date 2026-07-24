@@ -8,4 +8,5 @@ target/
 *.keystore
 **/key.properties
 *.apk
+*.aab
 **/build/
