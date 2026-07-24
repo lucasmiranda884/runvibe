@@ -20,7 +20,8 @@ public class ActivityMapper {
                         point.elevation(), point.speedMs(), point.heartRate(), point.timestamp()))
                 .toList();
         return new ActivityService.CreateActivityCommand(request.title(), request.description(),
-                request.shoeId(), request.elapsedTimeSeconds(), request.movingTimeSeconds(), points);
+                request.sportType(), request.shoeId(), request.elapsedTimeSeconds(),
+                request.movingTimeSeconds(), points);
     }
 
     public ActivityResponse toResponse(Activity activity) {
@@ -36,7 +37,7 @@ public class ActivityMapper {
                 .toList();
         return new ActivityResponse(activity.getId(), activity.getUser().getId(),
                 activity.getUser().getName(), activity.getTitle(), activity.getDescription(),
-                activity.getTotalDistanceMeters(), activity.getElapsedTimeSeconds(),
+                activity.getSportType(), activity.getTotalDistanceMeters(), activity.getElapsedTimeSeconds(),
                 activity.getMovingTimeSeconds(), activity.getAveragePaceSecondsPerKm(),
                 activity.getElevationGainMeters(), shoe == null ? null : shoe.getId(),
                 shoe == null ? null : shoe.getBrand() + " " + shoe.getModel(),

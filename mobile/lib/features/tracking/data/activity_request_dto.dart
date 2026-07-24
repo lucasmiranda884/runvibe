@@ -14,6 +14,7 @@ class ActivityRequestDTO {
   Map<String, dynamic> toJson() => {
     'title': title,
     'description': description,
+    'sportType': draft.sportType,
     'shoeId': draft.shoeId,
     'elapsedTimeSeconds': draft.elapsedTimeSeconds,
     'movingTimeSeconds': draft.movingTimeSeconds,

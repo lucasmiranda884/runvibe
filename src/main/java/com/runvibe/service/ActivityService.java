@@ -58,6 +58,7 @@ public class ActivityService {
         activity.setShoe(shoe);
         activity.setTitle(command.title().trim());
         activity.setDescription(command.description());
+        activity.setSportType(normalizeSportType(command.sportType()));
         activity.setElapsedTimeSeconds(command.elapsedTimeSeconds());
         activity.setMovingTimeSeconds(command.movingTimeSeconds());
         activity.setTotalDistanceMeters(metrics.distanceMeters());
@@ -118,7 +119,16 @@ public class ActivityService {
         }
     }
 
-    public record CreateActivityCommand(String title, String description, UUID shoeId,
+    private String normalizeSportType(String sportType) {
+        String normalized = sportType == null || sportType.isBlank()
+                ? "RUNNING" : sportType.trim().toUpperCase();
+        if (!List.of("RUNNING", "CYCLING", "WALKING", "HIKING").contains(normalized)) {
+            throw new IllegalArgumentException("Modalidade inválida");
+        }
+        return normalized;
+    }
+
+    public record CreateActivityCommand(String title, String description, String sportType, UUID shoeId,
                                         int elapsedTimeSeconds, int movingTimeSeconds,
                                         List<GpsPointCommand> points) {
     }

@@ -1,0 +1,51 @@
+name: Validate iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/ios-build.yml"
+
+jobs:
+  build-ios-without-signing:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.7"
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build iOS without signing
+        run: >
+          flutter build ios --release --no-codesign
+          --dart-define=API_BASE_URL=https://runvibe-api.onrender.com/api/v1/
+
+      - name: Package unsigned application
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app RunVibe-iOS-unsigned.zip
+
+      - name: Upload unsigned build
+        uses: actions/upload-artifact@v4
+        with:
+          name: RunVibe-iOS-unsigned
+          path: mobile/RunVibe-iOS-unsigned.zip
+          retention-days: 14

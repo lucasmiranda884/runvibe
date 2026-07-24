@@ -15,8 +15,9 @@ sealed class TrackingEvent extends Equatable {
 }
 
 final class TrackingStarted extends TrackingEvent {
-  const TrackingStarted({this.shoeId});
+  const TrackingStarted({this.shoeId, this.sportType = 'RUNNING'});
   final String? shoeId;
+  final String sportType;
 }
 
 final class TrackingPausedRequested extends TrackingEvent {
@@ -29,6 +30,15 @@ final class TrackingResumed extends TrackingEvent {
 
 final class TrackingFinished extends TrackingEvent {
   const TrackingFinished();
+}
+
+final class TrackingDiscarded extends TrackingEvent {
+  const TrackingDiscarded();
+}
+
+final class TrackingPhotosSelected extends TrackingEvent {
+  const TrackingPhotosSelected(this.paths);
+  final List<String> paths;
 }
 
 final class _PointReceived extends TrackingEvent {
@@ -122,6 +132,8 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
     on<TrackingPausedRequested>(_pause);
     on<TrackingResumed>(_resume);
     on<TrackingFinished>(_finish);
+    on<TrackingDiscarded>(_discard);
+    on<TrackingPhotosSelected>(_photosSelected);
     on<_PointReceived>(_point);
     on<_SecondElapsed>(_tick);
   }
@@ -132,6 +144,8 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
   Timer? _timer;
   DateTime? _startTime;
   String? _shoeId;
+  String _sportType = 'RUNNING';
+  List<String> _photoPaths = const [];
   int _elapsed = 0;
   int _moving = 0;
   double _distance = 0;
@@ -151,6 +165,8 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
       _points.clear();
       _startTime = DateTime.now().toUtc();
       _shoeId = event.shoeId;
+      _sportType = event.sportType;
+      _photoPaths = const [];
       _startStreams();
       emit(_inProgress());
     } on LocationPermissionException catch (error) {
@@ -207,6 +223,8 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
       movingTimeSeconds: _moving,
       totalDistanceMeters: _distance,
       points: List.unmodifiable(_points),
+      sportType: _sportType,
+      photoPaths: _photoPaths,
       shoeId: _shoeId,
     );
     final synced = await _repository.saveAndSync(draft);
@@ -220,6 +238,28 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
         synced: synced,
       ),
     );
+  }
+
+  Future<void> _discard(
+    TrackingDiscarded event,
+    Emitter<TrackingState> emit,
+  ) async {
+    _timer?.cancel();
+    await _gpsSubscription?.cancel();
+    await _location.stopBackgroundMode();
+    _elapsed = 0;
+    _moving = 0;
+    _distance = 0;
+    _points.clear();
+    _startTime = null;
+    emit(const TrackingInitial());
+  }
+
+  void _photosSelected(
+    TrackingPhotosSelected event,
+    Emitter<TrackingState> emit,
+  ) {
+    _photoPaths = event.paths.take(2).toList(growable: false);
   }
 
   void _point(_PointReceived event, Emitter<TrackingState> emit) {

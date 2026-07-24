@@ -13,6 +13,26 @@ class ActivityLocalDataSource {
       _box.put(draft.localId, draft.toJson());
   Future<void> delete(String localId) => _box.delete(localId);
 
+  Future<void> markSynced(ActivityDraftModel draft) => save(
+    ActivityDraftModel(
+      localId: draft.localId,
+      startTime: draft.startTime,
+      elapsedTimeSeconds: draft.elapsedTimeSeconds,
+      movingTimeSeconds: draft.movingTimeSeconds,
+      totalDistanceMeters: draft.totalDistanceMeters,
+      points: draft.points,
+      sportType: draft.sportType,
+      photoPaths: draft.photoPaths,
+      shoeId: draft.shoeId,
+      pendingSync: false,
+    ),
+  );
+
+  List<ActivityDraftModel> all() => _box.values
+      .whereType<Map<dynamic, dynamic>>()
+      .map(ActivityDraftModel.fromJson)
+      .toList(growable: false);
+
   List<ActivityDraftModel> pending() => _box.values
       .whereType<Map<dynamic, dynamic>>()
       .map(ActivityDraftModel.fromJson)

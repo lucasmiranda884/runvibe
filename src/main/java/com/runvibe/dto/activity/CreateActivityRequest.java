@@ -12,6 +12,7 @@ import java.util.UUID;
 public record CreateActivityRequest(
         @NotBlank @Size(max = 160) String title,
         @Size(max = 2000) String description,
+        @Size(max = 32) String sportType,
         UUID shoeId,
         @Positive int elapsedTimeSeconds,
         @Positive int movingTimeSeconds,

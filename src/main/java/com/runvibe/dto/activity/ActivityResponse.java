@@ -10,6 +10,7 @@ public record ActivityResponse(
         String userName,
         String title,
         String description,
+        String sportType,
         double totalDistanceMeters,
         int elapsedTimeSeconds,
         int movingTimeSeconds,

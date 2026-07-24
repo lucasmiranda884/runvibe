@@ -40,6 +40,9 @@ public class Activity {
     @Column(length = 2000)
     private String description;
 
+    @Column(name = "sport_type", nullable = false, length = 32)
+    private String sportType;
+
     @Column(name = "total_distance_meters", nullable = false)
     private Double totalDistanceMeters;
 

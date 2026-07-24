@@ -9,6 +9,8 @@ class ActivityDraftModel extends Equatable {
     required this.movingTimeSeconds,
     required this.totalDistanceMeters,
     required this.points,
+    this.sportType = 'RUNNING',
+    this.photoPaths = const [],
     this.shoeId,
     this.pendingSync = true,
   });
@@ -19,6 +21,8 @@ class ActivityDraftModel extends Equatable {
   final int movingTimeSeconds;
   final double totalDistanceMeters;
   final List<GPSPointModel> points;
+  final String sportType;
+  final List<String> photoPaths;
   final String? shoeId;
   final bool pendingSync;
 
@@ -29,6 +33,8 @@ class ActivityDraftModel extends Equatable {
     'movingTimeSeconds': movingTimeSeconds,
     'totalDistanceMeters': totalDistanceMeters,
     'points': points.map((point) => point.toJson()).toList(),
+    'sportType': sportType,
+    'photoPaths': photoPaths.take(2).toList(growable: false),
     'shoeId': shoeId,
     'pendingSync': pendingSync,
   };
@@ -45,6 +51,13 @@ class ActivityDraftModel extends Equatable {
               (item) => GPSPointModel.fromJson(item as Map<dynamic, dynamic>),
             )
             .toList(growable: false),
+        sportType: json['sportType'] as String? ?? 'RUNNING',
+        photoPaths:
+            (json['photoPaths'] as List?)
+                ?.whereType<String>()
+                .take(2)
+                .toList(growable: false) ??
+            const [],
         shoeId: json['shoeId'] as String?,
         pendingSync: json['pendingSync'] as bool? ?? true,
       );
@@ -57,6 +70,8 @@ class ActivityDraftModel extends Equatable {
     movingTimeSeconds,
     totalDistanceMeters,
     points,
+    sportType,
+    photoPaths,
     shoeId,
     pendingSync,
   ];

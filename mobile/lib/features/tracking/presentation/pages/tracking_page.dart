@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:runvibe_mobile/core/di/injection.dart';
+import 'package:runvibe_mobile/features/tracking/domain/activity_photo_storage.dart';
 import 'package:runvibe_mobile/features/tracking/presentation/bloc/tracking_bloc.dart';
 
 class TrackingPage extends StatefulWidget {
@@ -16,6 +18,8 @@ class _TrackingPageState extends State<TrackingPage> {
   Line? _routeLine;
   bool _styleReady = false;
   bool _darkMap = true;
+  String _sportType = 'RUNNING';
+  List<String> _photoPaths = const [];
   TrackingMetricsState? _latestMetrics;
 
   String get _style => _darkMap
@@ -55,6 +59,13 @@ class _TrackingPageState extends State<TrackingPage> {
     _routeLine = null;
     final metrics = _latestMetrics;
     if (metrics != null) await _updateMap(metrics);
+  }
+
+  Future<void> _pickPhotos() async {
+    final paths = await getIt<ActivityPhotoStorage>().pickAndStore();
+    if (paths.isEmpty || !mounted) return;
+    setState(() => _photoPaths = paths);
+    context.read<TrackingBloc>().add(TrackingPhotosSelected(paths));
   }
 
   @override
@@ -133,7 +144,50 @@ class _TrackingPageState extends State<TrackingPage> {
                             child: Text(state.error!),
                           ),
                         ),
-                      _Controls(state: state),
+                      if (state is TrackingInitial ||
+                          state is TrackingCompleted)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _sportType,
+                                  isExpanded: true,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'RUNNING',
+                                      child: Text('🏃 Corrida'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'CYCLING',
+                                      child: Text('🚴 Ciclismo'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'WALKING',
+                                      child: Text('🚶 Caminhada'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'HIKING',
+                                      child: Text('🥾 Trilha'),
+                                    ),
+                                  ],
+                                  onChanged: (value) =>
+                                      setState(() => _sportType = value!),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      _Controls(
+                        state: state,
+                        sportType: _sportType,
+                        photoCount: _photoPaths.length,
+                        onPickPhotos: _pickPhotos,
+                      ),
                     ],
                   ),
                 ),
@@ -208,8 +262,16 @@ class _Metric extends StatelessWidget {
 }
 
 class _Controls extends StatelessWidget {
-  const _Controls({required this.state});
+  const _Controls({
+    required this.state,
+    required this.sportType,
+    required this.photoCount,
+    required this.onPickPhotos,
+  });
   final TrackingState state;
+  final String sportType;
+  final int photoCount;
+  final VoidCallback onPickPhotos;
 
   @override
   Widget build(BuildContext context) {
@@ -219,7 +281,7 @@ class _Controls extends StatelessWidget {
         heroTag: 'start-run',
         onPressed: () {
           HapticFeedback.heavyImpact();
-          bloc.add(const TrackingStarted());
+          bloc.add(TrackingStarted(sportType: sportType));
         },
         child: const Icon(Icons.play_arrow_rounded, size: 44),
       );
@@ -227,6 +289,45 @@ class _Controls extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        Badge(
+          isLabelVisible: photoCount > 0,
+          label: Text('$photoCount'),
+          child: FloatingActionButton.small(
+            heroTag: 'photos-run',
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            onPressed: onPickPhotos,
+            child: const Icon(Icons.add_a_photo_outlined),
+          ),
+        ),
+        const SizedBox(width: 12),
+        FloatingActionButton.small(
+          heroTag: 'discard-run',
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          onPressed: () async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                title: const Text('Zerar atividade?'),
+                content: const Text(
+                  'O treino atual será descartado e não poderá ser recuperado.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Cancelar'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('Zerar'),
+                  ),
+                ],
+              ),
+            );
+            if (confirmed == true) bloc.add(const TrackingDiscarded());
+          },
+          child: const Icon(Icons.restart_alt_rounded),
+        ),
+        const SizedBox(width: 12),
         FloatingActionButton(
           heroTag: 'pause-run',
           onPressed: () {
@@ -239,7 +340,7 @@ class _Controls extends StatelessWidget {
           },
           child: Icon(state is TrackingPaused ? Icons.play_arrow : Icons.pause),
         ),
-        const SizedBox(width: 24),
+        const SizedBox(width: 12),
         FloatingActionButton(
           heroTag: 'finish-run',
           backgroundColor: Theme.of(context).colorScheme.error,

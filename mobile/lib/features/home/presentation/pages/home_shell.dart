@@ -1,11 +1,19 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:runvibe_mobile/core/di/injection.dart';
+import 'package:runvibe_mobile/core/storage/token_storage.dart';
 import 'package:runvibe_mobile/features/coach/presentation/pages/coach_page.dart';
 import 'package:runvibe_mobile/features/races/presentation/pages/races_page.dart';
 import 'package:runvibe_mobile/features/settings/presentation/pages/settings_page.dart';
+import 'package:runvibe_mobile/features/social/presentation/pages/user_search_page.dart';
+import 'package:runvibe_mobile/features/tracking/domain/activity_photo_storage.dart';
+import 'package:runvibe_mobile/features/tracking/data/activity_local_data_source.dart';
 import 'package:runvibe_mobile/features/tracking/presentation/bloc/tracking_bloc.dart';
 import 'package:runvibe_mobile/features/tracking/presentation/pages/tracking_page.dart';
 
@@ -130,7 +138,11 @@ class _FeedPageState extends State<_FeedPage> {
                     const SizedBox(width: 8),
                     _RoundIconButton(
                       icon: Icons.person_add_alt_1_outlined,
-                      onTap: () => _comingSoon(context, 'Buscar corredores'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const UserSearchPage(),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -215,91 +227,274 @@ class _FeedPageState extends State<_FeedPage> {
   }
 }
 
-class _ProfilePage extends StatelessWidget {
+class _ProfilePage extends StatefulWidget {
   const _ProfilePage();
+
+  @override
+  State<_ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<_ProfilePage> {
+  late Future<Map<String, dynamic>> _profile = _load();
+  String? _localPicture;
+
+  @override
+  void initState() {
+    super.initState();
+    getIt<FlutterSecureStorage>().read(key: 'runvibe.profilePhoto').then((
+      path,
+    ) {
+      if (mounted) setState(() => _localPicture = path);
+    });
+  }
+
+  Future<Map<String, dynamic>> _load() async {
+    final response = await getIt<Dio>().get<Map<String, dynamic>>('users/me');
+    return response.data ?? const {};
+  }
+
+  Future<void> _edit(Map<String, dynamic> profile) async {
+    final name = TextEditingController(text: profile['name'] as String? ?? '');
+    final bio = TextEditingController(text: profile['bio'] as String? ?? '');
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Editar perfil'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(labelText: 'Nome'),
+            ),
+            TextField(
+              controller: bio,
+              maxLength: 500,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Biografia'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    if (save == true && name.text.trim().isNotEmpty) {
+      await getIt<Dio>().patch<Map<String, dynamic>>(
+        'users/me',
+        data: {
+          'name': name.text.trim(),
+          'bio': bio.text.trim(),
+          'profilePictureUrl': profile['profilePictureUrl'],
+        },
+      );
+      setState(() => _profile = _load());
+    }
+    name.dispose();
+    bio.dispose();
+  }
+
+  Future<void> _pickProfilePicture() async {
+    final path = await getIt<ActivityPhotoStorage>().pickProfilePhoto();
+    if (path == null || !mounted) return;
+    await getIt<FlutterSecureStorage>().write(
+      key: 'runvibe.profilePhoto',
+      value: path,
+    );
+    setState(() => _localPicture = path);
+  }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Row(
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: _profile,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: FilledButton(
+                onPressed: () => setState(() => _profile = _load()),
+                child: const Text('Tentar carregar perfil novamente'),
+              ),
+            );
+          }
+          final profile = snapshot.data ?? const {};
+          final name = profile['name'] as String? ?? 'Corredor RunVibe';
+          final picture = profile['profilePictureUrl'] as String?;
+          return ListView(
+            padding: const EdgeInsets.all(20),
             children: [
-              Text(
-                'Perfil',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const Spacer(),
-              IconButton.filledTonal(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
-                ),
-                icon: const Icon(Icons.settings_outlined),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          const Row(
-            children: [
-              CircleAvatar(
-                radius: 42,
-                backgroundColor: Color(0xFF11180F),
-                child: Icon(
-                  Icons.person_rounded,
-                  color: Colors.white,
-                  size: 44,
-                ),
-              ),
-              SizedBox(width: 18),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Corredor RunVibe',
-                      style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w900,
+              Row(
+                children: [
+                  Text(
+                    'Perfil',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton.filledTonal(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SettingsPage(),
                       ),
                     ),
-                    SizedBox(height: 4),
-                    Text('Sua jornada começa agora'),
-                  ],
-                ),
+                    icon: const Icon(Icons.settings_outlined),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: _pickProfilePicture,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 42,
+                          backgroundColor: const Color(0xFF11180F),
+                          backgroundImage:
+                              _localPicture != null &&
+                                  File(_localPicture!).existsSync()
+                              ? FileImage(File(_localPicture!))
+                              : picture == null
+                              ? null
+                              : NetworkImage(picture),
+                          child: _localPicture == null && picture == null
+                              ? const Icon(
+                                  Icons.person_rounded,
+                                  color: Colors.white,
+                                  size: 44,
+                                )
+                              : null,
+                        ),
+                        const Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: CircleAvatar(
+                            radius: 13,
+                            child: Icon(Icons.camera_alt_rounded, size: 15),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          profile['bio'] as String? ??
+                              profile['email'] as String? ??
+                              'Sua jornada começa agora',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 26),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  const _ProfileMetric('—', 'Atividades'),
+                  _ProfileMetric('${profile['following'] ?? 0}', 'Seguindo'),
+                  _ProfileMetric('${profile['followers'] ?? 0}', 'Seguidores'),
+                ],
+              ),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () => _edit(profile),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Editar perfil'),
+              ),
+              const SizedBox(height: 24),
+              Builder(
+                builder: (context) {
+                  final photos = getIt<ActivityLocalDataSource>()
+                      .all()
+                      .expand((activity) => activity.photoPaths)
+                      .where((path) => File(path).existsSync())
+                      .toList(growable: false)
+                      .reversed
+                      .take(6)
+                      .toList(growable: false);
+                  if (photos.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Fotos das atividades',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 110,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: photos.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
+                          itemBuilder: (_, index) => ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.file(
+                              File(photos[index]),
+                              width: 110,
+                              height: 110,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  );
+                },
+              ),
+              const _SectionTile(
+                icon: Icons.workspace_premium_outlined,
+                title: 'Conquistas',
+                subtitle: 'Marcos e desafios concluídos',
+              ),
+              const SizedBox(height: 12),
+              const _SectionTile(
+                icon: Icons.shield_outlined,
+                title: 'Privacidade',
+                subtitle: 'Controle quem vê suas atividades',
+              ),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await getIt<TokenStorage>().clear();
+                  if (context.mounted) context.go('/login');
+                },
+                icon: const Icon(Icons.logout_rounded),
+                label: const Text('Sair da conta'),
               ),
             ],
-          ),
-          const SizedBox(height: 26),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _ProfileMetric('0', 'Atividades'),
-              _ProfileMetric('0', 'Seguindo'),
-              _ProfileMetric('0', 'Seguidores'),
-            ],
-          ),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: () => _comingSoon(context, 'Editar perfil'),
-            icon: const Icon(Icons.edit_outlined),
-            label: const Text('Editar perfil'),
-          ),
-          const SizedBox(height: 24),
-          const _SectionTile(
-            icon: Icons.workspace_premium_outlined,
-            title: 'Conquistas',
-            subtitle: 'Marcos e desafios concluídos',
-          ),
-          const SizedBox(height: 12),
-          const _SectionTile(
-            icon: Icons.shield_outlined,
-            title: 'Privacidade',
-            subtitle: 'Controle quem vê suas atividades',
-          ),
-        ],
+          );
+        },
       ),
     );
   }

@@ -29,10 +29,14 @@ void main() {
       movingTimeSeconds: 300,
       totalDistanceMeters: 1000,
       points: [firstPoint, secondPoint],
+      sportType: 'CYCLING',
+      photoPaths: const ['photo-1.jpg', 'photo-2.jpg'],
       shoeId: 'shoe-1',
     );
 
-    expect(ActivityDraftModel.fromJson(draft.toJson()), draft);
+    final restored = ActivityDraftModel.fromJson(draft.toJson());
+    expect(restored, draft);
+    expect(restored.photoPaths, hasLength(2));
   });
 
   test('payload em lote contém tempos, tênis e pontos GPS', () {
@@ -43,6 +47,7 @@ void main() {
       movingTimeSeconds: 300,
       totalDistanceMeters: 1000,
       points: [firstPoint, secondPoint],
+      sportType: 'CYCLING',
       shoeId: 'shoe-1',
     );
 
@@ -55,6 +60,7 @@ void main() {
     expect(json['elapsedTimeSeconds'], 320);
     expect(json['movingTimeSeconds'], 300);
     expect(json['shoeId'], 'shoe-1');
+    expect(json['sportType'], 'CYCLING');
     expect(json['points'], hasLength(2));
   });
 }

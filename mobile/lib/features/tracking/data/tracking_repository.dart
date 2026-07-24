@@ -19,17 +19,24 @@ class TrackingRepository {
     try {
       await _remote.create(
         ActivityRequestDTO(
-          title: 'Corrida ${draft.startTime.toLocal()}',
+          title: '${_sportName(draft.sportType)} ${draft.startTime.toLocal()}',
           description: 'Registrada pelo RunVibe Mobile',
           draft: draft,
         ),
       );
-      await _local.delete(draft.localId);
+      await _local.markSynced(draft);
       return true;
     } on DioException {
       return false;
     }
   }
+
+  String _sportName(String type) => switch (type) {
+    'CYCLING' => 'Pedalada',
+    'WALKING' => 'Caminhada',
+    'HIKING' => 'Trilha',
+    _ => 'Corrida',
+  };
 
   Future<void> syncPending() async {
     if (_syncing) return;

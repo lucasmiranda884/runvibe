@@ -36,7 +36,7 @@ server:
 security:
   jwt:
     secret: ${JWT_SECRET:change-this-development-secret-with-at-least-32-characters}
-    expiration: ${JWT_EXPIRATION:PT24H}
+    expiration: ${JWT_EXPIRATION:P30D}
 
 springdoc:
   swagger-ui:
