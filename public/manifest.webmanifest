@@ -1,0 +1,10 @@
+{
+  "name": "RunVibe",
+  "short_name": "RunVibe",
+  "description": "GPS, comunidade e treinos personalizados.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e100d",
+  "theme_color": "#b7f34a",
+  "icons": []
+}
