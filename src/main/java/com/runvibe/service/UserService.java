@@ -38,8 +38,10 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<UserProfileResponse> search(UUID currentUserId, String query) {
         String normalized = query == null ? "" : query.trim();
-        if (normalized.length() < 2) return List.of();
-        return userRepository.search(normalized, currentUserId).stream()
+        List<User> users = normalized.length() < 2
+                ? userRepository.findTop20ByIdNotOrderByCreatedAtDesc(currentUserId)
+                : userRepository.search(normalized, currentUserId);
+        return users.stream()
                 .limit(20)
                 .map(user -> response(user, currentUserId))
                 .toList();

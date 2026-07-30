@@ -17,6 +17,21 @@ class _UserSearchPageState extends State<UserSearchPage> {
   Future<List<Map<String, dynamic>>>? _results;
 
   @override
+  void initState() {
+    super.initState();
+    _results = _request('');
+  }
+
+  Future<List<Map<String, dynamic>>> _request(String query) => getIt<Dio>()
+      .get<List<dynamic>>(
+        'users/search',
+        queryParameters: {'query': query.trim()},
+      )
+      .then(
+        (response) => (response.data ?? const []).cast<Map<String, dynamic>>(),
+      );
+
+  @override
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
@@ -26,20 +41,12 @@ class _UserSearchPageState extends State<UserSearchPage> {
   void _search(String query) {
     _debounce?.cancel();
     if (query.trim().length < 2) {
-      setState(() => _results = null);
+      setState(() => _results = _request(''));
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 350), () {
       setState(() {
-        _results = getIt<Dio>()
-            .get<List<dynamic>>(
-              'users/search',
-              queryParameters: {'query': query.trim()},
-            )
-            .then(
-              (response) =>
-                  (response.data ?? const []).cast<Map<String, dynamic>>(),
-            );
+        _results = _request(query);
       });
     });
   }
@@ -67,57 +74,51 @@ class _UserSearchPageState extends State<UserSearchPage> {
             ),
           ),
           Expanded(
-            child: _results == null
-                ? const Center(
-                    child: Text('Digite pelo menos duas letras ou o e-mail.'),
-                  )
-                : FutureBuilder<List<Map<String, dynamic>>>(
-                    future: _results,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return const Center(
-                          child: Text('Não foi possível buscar usuários.'),
-                        );
-                      }
-                      final users = snapshot.data ?? const [];
-                      if (users.isEmpty) {
-                        return const Center(
-                          child: Text('Nenhum usuário encontrado.'),
-                        );
-                      }
-                      return ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: users.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final user = users[index];
-                          final following = user['followedByMe'] == true;
-                          return Card(
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                child: Text(
-                                  (user['name'] as String? ?? 'R')
-                                      .substring(0, 1)
-                                      .toUpperCase(),
-                                ),
-                              ),
-                              title: Text(
-                                user['name'] as String? ?? 'Corredor',
-                              ),
-                              subtitle: Text(user['email'] as String? ?? ''),
-                              trailing: FilledButton.tonal(
-                                onPressed: () => _toggle(user),
-                                child: Text(following ? 'Seguindo' : 'Seguir'),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _results,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text('Não foi possível buscar usuários.'),
+                  );
+                }
+                final users = snapshot.data ?? const [];
+                if (users.isEmpty) {
+                  return const Center(
+                    child: Text('Nenhum usuário encontrado.'),
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: users.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final user = users[index];
+                    final following = user['followedByMe'] == true;
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          child: Text(
+                            (user['name'] as String? ?? 'R')
+                                .substring(0, 1)
+                                .toUpperCase(),
+                          ),
+                        ),
+                        title: Text(user['name'] as String? ?? 'Corredor'),
+                        subtitle: Text(user['email'] as String? ?? ''),
+                        trailing: FilledButton.tonal(
+                          onPressed: () => _toggle(user),
+                          child: Text(following ? 'Seguindo' : 'Seguir'),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),

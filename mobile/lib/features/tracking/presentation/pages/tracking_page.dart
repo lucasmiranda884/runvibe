@@ -345,17 +345,6 @@ class _Controls extends StatelessWidget {
           heroTag: 'finish-run',
           backgroundColor: Theme.of(context).colorScheme.error,
           onPressed: () {
-            if (state is TrackingMetricsState &&
-                (state as TrackingMetricsState).points.length < 2) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Aguarde o GPS registrar pelo menos dois pontos.',
-                  ),
-                ),
-              );
-              return;
-            }
             HapticFeedback.heavyImpact();
             bloc.add(const TrackingFinished());
           },

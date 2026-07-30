@@ -12,6 +12,7 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmailIgnoreCase(String email);
     boolean existsByEmailIgnoreCase(String email);
+    List<User> findTop20ByIdNotOrderByCreatedAtDesc(UUID currentUserId);
 
     @Query("""
             select u from User u

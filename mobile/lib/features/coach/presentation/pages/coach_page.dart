@@ -11,27 +11,54 @@ class _CoachPageState extends State<CoachPage> {
   String _goal = '5 km';
   int _days = 3;
   int _weeks = 8;
+  double _weeklyKm = 10;
+  String _level = 'Iniciante';
+  String _preferredWorkout = 'Variado';
   List<_Workout> _plan = const [];
 
   void _generatePlan() {
-    final longRun = switch (_goal) {
-      '10 km' => 8,
-      '21 km' => 14,
-      '42 km' => 22,
-      _ => 5,
+    final targetLongRun = switch (_goal) {
+      '10 km' => 10.0,
+      '21 km' => 18.0,
+      '42 km' => 30.0,
+      _ => 6.0,
     };
+    final safeLongRun = (_weeklyKm * 0.45).clamp(4, targetLongRun);
+    final repetitions = _level == 'Iniciante'
+        ? 6
+        : _level == 'Intermediário'
+        ? 8
+        : 10;
+    final hardSeconds = _level == 'Iniciante' ? 45 : 60;
     final workouts = <_Workout>[
-      const _Workout(
+      _Workout(
         'Corrida leve',
-        '30–40 min em ritmo confortável',
+        '${(_weeklyKm / _days).clamp(3, 8).toStringAsFixed(1)} km em ritmo confortável',
         Icons.self_improvement_rounded,
       ),
-      const _Workout(
-        'Intervalado',
-        '6 × 400 m forte, 2 min de recuperação',
-        Icons.speed_rounded,
+      if (_preferredWorkout == 'Variado' || _preferredWorkout == 'Tiros')
+        _Workout(
+          'Treino de tiros',
+          '$repetitions × $hardSeconds s forte, com 90 s trotando',
+          Icons.speed_rounded,
+        ),
+      if (_preferredWorkout == 'Variado' || _preferredWorkout == 'Intervalado')
+        const _Workout(
+          'Intervalado progressivo',
+          '10 min leve + 4 × (3 min moderado / 2 min leve) + 8 min leve',
+          Icons.timer_rounded,
+        ),
+      if (_preferredWorkout == 'Variado' || _preferredWorkout == 'Fartlek')
+        const _Workout(
+          'Fartlek',
+          '10 min leve + 8 × (1 min rápido / 1 min livre) + 10 min leve',
+          Icons.multiline_chart_rounded,
+        ),
+      _Workout(
+        'Longão',
+        '${safeLongRun.toStringAsFixed(1)} km em ritmo fácil',
+        Icons.route_rounded,
       ),
-      _Workout('Longão', '$longRun km em ritmo fácil', Icons.route_rounded),
     ];
     if (_days >= 4) {
       workouts.insert(
@@ -65,8 +92,8 @@ class _CoachPageState extends State<CoachPage> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Plano adaptativo gratuito. Ele usa seu objetivo agora e, nas '
-            'próximas versões, também considerará seu histórico completo.',
+            'Plano ajustado ao seu objetivo, nível e volume atual. A carga '
+            'aumenta de forma conservadora para facilitar os testes práticos.',
           ),
           const SizedBox(height: 20),
           Card(
@@ -90,6 +117,60 @@ class _CoachPageState extends State<CoachPage> {
                     onChanged: (value) => setState(() => _goal = value!),
                   ),
                   const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _level,
+                    decoration: const InputDecoration(
+                      labelText: 'Nível atual',
+                      prefixIcon: Icon(Icons.trending_up_rounded),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const ['Iniciante', 'Intermediário', 'Avançado']
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) => setState(() => _level = value!),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _preferredWorkout,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de treino',
+                      prefixIcon: Icon(Icons.tune_rounded),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const ['Variado', 'Tiros', 'Intervalado', 'Fartlek']
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => _preferredWorkout = value!),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${_weeklyKm.toStringAsFixed(0)} km por semana atualmente',
+                        ),
+                      ),
+                      Slider(
+                        value: _weeklyKm,
+                        min: 5,
+                        max: 100,
+                        divisions: 19,
+                        label: '${_weeklyKm.round()} km',
+                        onChanged: (value) => setState(() => _weeklyKm = value),
+                      ),
+                    ],
+                  ),
                   Row(
                     children: [
                       Expanded(child: Text('$_days dias por semana')),

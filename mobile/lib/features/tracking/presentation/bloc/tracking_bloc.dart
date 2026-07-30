@@ -212,7 +212,7 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
     TrackingFinished event,
     Emitter<TrackingState> emit,
   ) async {
-    if (state is! TrackingMetricsState || _points.length < 2) return;
+    if (state is! TrackingMetricsState) return;
     _timer?.cancel();
     await _gpsSubscription?.cancel();
     await _location.stopBackgroundMode();
@@ -227,7 +227,12 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
       photoPaths: _photoPaths,
       shoeId: _shoeId,
     );
-    final synced = await _repository.saveAndSync(draft);
+    // A atividade deve ser preservada mesmo quando o GPS não conseguiu fixar
+    // uma rota. O backend exige pelo menos dois pontos; nesse caso ela fica
+    // local e pendente até o usuário editar/importar uma rota.
+    final synced = _points.length >= 2
+        ? await _repository.saveAndSync(draft)
+        : await _repository.saveOffline(draft);
     emit(
       TrackingCompleted(
         elapsedSeconds: _elapsed,

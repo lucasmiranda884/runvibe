@@ -15,6 +15,11 @@ class TrackingRepository {
     return sync(draft);
   }
 
+  Future<bool> saveOffline(ActivityDraftModel draft) async {
+    await _local.save(draft);
+    return false;
+  }
+
   Future<bool> sync(ActivityDraftModel draft) async {
     try {
       await _remote.create(
@@ -43,6 +48,7 @@ class TrackingRepository {
     _syncing = true;
     try {
       for (final draft in _local.pending()) {
+        if (draft.points.length < 2) continue;
         await sync(draft);
       }
     } finally {

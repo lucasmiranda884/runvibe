@@ -9,11 +9,14 @@ import 'package:intl/intl.dart';
 import 'package:runvibe_mobile/core/di/injection.dart';
 import 'package:runvibe_mobile/core/storage/token_storage.dart';
 import 'package:runvibe_mobile/features/coach/presentation/pages/coach_page.dart';
+import 'package:runvibe_mobile/features/clubs/presentation/pages/clubs_page.dart';
+import 'package:runvibe_mobile/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:runvibe_mobile/features/races/presentation/pages/races_page.dart';
 import 'package:runvibe_mobile/features/settings/presentation/pages/settings_page.dart';
 import 'package:runvibe_mobile/features/social/presentation/pages/user_search_page.dart';
 import 'package:runvibe_mobile/features/tracking/domain/activity_photo_storage.dart';
 import 'package:runvibe_mobile/features/tracking/data/activity_local_data_source.dart';
+import 'package:runvibe_mobile/features/tracking/domain/models/activity_draft_model.dart';
 import 'package:runvibe_mobile/features/tracking/presentation/bloc/tracking_bloc.dart';
 import 'package:runvibe_mobile/features/tracking/presentation/pages/tracking_page.dart';
 
@@ -104,11 +107,21 @@ class _FeedPageState extends State<_FeedPage> {
   late Future<List<_ActivityItem>> _future = _load();
 
   Future<List<_ActivityItem>> _load() async {
-    final response = await getIt<Dio>().get<Map<String, dynamic>>('feed');
-    final content = response.data?['content'] as List<dynamic>? ?? const [];
-    return content
-        .map((item) => _ActivityItem.fromJson(item as Map<String, dynamic>))
+    final local = getIt<ActivityLocalDataSource>()
+        .all()
+        .map(_ActivityItem.fromDraft)
         .toList();
+    try {
+      final response = await getIt<Dio>().get<Map<String, dynamic>>('feed');
+      final content = response.data?['content'] as List<dynamic>? ?? const [];
+      final remote = content
+          .map((item) => _ActivityItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+      return [...local.where((item) => item.pendingSync), ...remote];
+    } on DioException {
+      local.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return local;
+    }
   }
 
   Future<void> _refresh() async {
@@ -133,7 +146,11 @@ class _FeedPageState extends State<_FeedPage> {
                     const Spacer(),
                     _RoundIconButton(
                       icon: Icons.notifications_none_rounded,
-                      onTap: () => _comingSoon(context, 'Notificações'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const NotificationsPage(),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     _RoundIconButton(
@@ -173,7 +190,11 @@ class _FeedPageState extends State<_FeedPage> {
                     _QuickAction(
                       Icons.groups_2_outlined,
                       'Clubes',
-                      () => _comingSoon(context, 'Clubes'),
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ClubsPage(),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -618,6 +639,7 @@ class _ActivityItem {
     required this.elapsedSeconds,
     required this.paceSeconds,
     required this.createdAt,
+    this.pendingSync = false,
   });
 
   factory _ActivityItem.fromJson(Map<String, dynamic> json) => _ActivityItem(
@@ -630,12 +652,31 @@ class _ActivityItem {
         DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
   );
 
+  factory _ActivityItem.fromDraft(ActivityDraftModel draft) => _ActivityItem(
+    userName: 'Você',
+    title: switch (draft.sportType) {
+      'CYCLING' => 'Pedalada',
+      'WALKING' => 'Caminhada',
+      'HIKING' => 'Trilha',
+      _ => 'Corrida',
+    },
+    distanceMeters: draft.totalDistanceMeters,
+    elapsedSeconds: draft.elapsedTimeSeconds,
+    paceSeconds: draft.totalDistanceMeters <= 0
+        ? 0
+        : (draft.movingTimeSeconds / (draft.totalDistanceMeters / 1000))
+              .round(),
+    createdAt: draft.startTime,
+    pendingSync: draft.pendingSync,
+  );
+
   final String userName;
   final String title;
   final double distanceMeters;
   final int elapsedSeconds;
   final int paceSeconds;
   final DateTime createdAt;
+  final bool pendingSync;
 }
 
 class _RoutePainter extends CustomPainter {
