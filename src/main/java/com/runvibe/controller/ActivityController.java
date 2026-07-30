@@ -3,6 +3,9 @@ package com.runvibe.controller;
 import com.runvibe.dto.activity.ActivityResponse;
 import com.runvibe.dto.activity.CreateActivityRequest;
 import com.runvibe.dto.social.ToggleResponse;
+import com.runvibe.dto.social.CommentResponse;
+import com.runvibe.dto.social.CreateCommentRequest;
+import com.runvibe.entity.ActivityComment;
 import com.runvibe.entity.Activity;
 import com.runvibe.mapper.ActivityMapper;
 import com.runvibe.security.UserPrincipal;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/activities")
@@ -49,5 +53,25 @@ public class ActivityController {
     public ToggleResponse toggleKudos(@PathVariable UUID id,
                                       @AuthenticationPrincipal UserPrincipal principal) {
         return new ToggleResponse(socialService.toggleKudos(id, principal.id()).active());
+    }
+
+    @GetMapping("/{id}/comments")
+    public List<CommentResponse> comments(@PathVariable UUID id) {
+        return socialService.getComments(id).stream()
+                .map(this::toCommentResponse)
+                .toList();
+    }
+
+    @PostMapping("/{id}/comments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CommentResponse addComment(@PathVariable UUID id,
+                                      @AuthenticationPrincipal UserPrincipal principal,
+                                      @Valid @RequestBody CreateCommentRequest request) {
+        return toCommentResponse(socialService.addComment(id, principal.id(), request.content()));
+    }
+
+    private CommentResponse toCommentResponse(ActivityComment comment) {
+        return new CommentResponse(comment.getId(), comment.getUser().getId(),
+                comment.getUser().getName(), comment.getContent(), comment.getCreatedAt());
     }
 }

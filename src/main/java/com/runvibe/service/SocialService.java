@@ -1,6 +1,7 @@
 package com.runvibe.service;
 
 import com.runvibe.entity.Activity;
+import com.runvibe.entity.ActivityComment;
 import com.runvibe.entity.ActivityKudos;
 import com.runvibe.entity.ActivityKudosId;
 import com.runvibe.entity.User;
@@ -8,6 +9,7 @@ import com.runvibe.entity.UserFollow;
 import com.runvibe.entity.UserFollowId;
 import com.runvibe.exception.ResourceNotFoundException;
 import com.runvibe.repository.ActivityKudosRepository;
+import com.runvibe.repository.ActivityCommentRepository;
 import com.runvibe.repository.ActivityRepository;
 import com.runvibe.repository.UserFollowRepository;
 import com.runvibe.repository.UserRepository;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +27,7 @@ public class SocialService {
     private final UserRepository userRepository;
     private final ActivityRepository activityRepository;
     private final ActivityKudosRepository kudosRepository;
+    private final ActivityCommentRepository commentRepository;
     private final UserFollowRepository followRepository;
 
     @Transactional
@@ -65,6 +69,27 @@ public class SocialService {
         follow.setFollowed(followed);
         followRepository.save(follow);
         return new ToggleResult(true);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ActivityComment> getComments(UUID activityId) {
+        if (!activityRepository.existsById(activityId)) {
+            throw new ResourceNotFoundException("Atividade não encontrada");
+        }
+        return commentRepository.findByActivityIdOrderByCreatedAtAsc(activityId);
+    }
+
+    @Transactional
+    public ActivityComment addComment(UUID activityId, UUID userId, String content) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Atividade não encontrada"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+        ActivityComment comment = new ActivityComment();
+        comment.setActivity(activity);
+        comment.setUser(user);
+        comment.setContent(content.trim());
+        return commentRepository.save(comment);
     }
 
     public record ToggleResult(boolean active) {
