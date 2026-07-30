@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
-type View = "inicio" | "gravar" | "treinador" | "clubes" | "provas" | "perfil";
+type View = "inicio" | "gravar" | "treinador" | "pessoas" | "clubes" | "provas" | "perfil";
 type Point = { latitude: number; longitude: number; elevation: number; speedMs: number; heartRate: number; timestamp: string };
 type Draft = {
   localId: string; startTime: string; elapsed: number; moving: number;
@@ -81,6 +81,7 @@ export default function Home() {
           <Nav active={view === "inicio"} icon="⌂" label="Início" onClick={() => setView("inicio")} />
           <Nav active={view === "gravar"} icon="●" label="Gravar" onClick={() => setView("gravar")} />
           <Nav active={view === "treinador"} icon="✦" label="Treinador" onClick={() => setView("treinador")} />
+          <Nav active={view === "pessoas"} icon="◉" label="Pessoas" onClick={() => setView("pessoas")} />
           <Nav active={view === "clubes"} icon="◎" label="Clubes" onClick={() => setView("clubes")} />
           <Nav active={view === "provas"} icon="◇" label="Provas" onClick={() => setView("provas")} />
           <Nav active={view === "perfil"} icon="○" label="Perfil" onClick={() => setView("perfil")} />
@@ -94,16 +95,17 @@ export default function Home() {
         <header className="topbar">
           <div>
             <p className="eyebrow">TREINE. EVOLUA. COMPARTILHE.</p>
-            <h1>{({ inicio: "Seu ritmo, sua comunidade", gravar: "Gravar atividade", treinador: "Treinador RunVibe", clubes: "Clubes", provas: "Calendário de provas", perfil: "Seu perfil" } as Record<View,string>)[view]}</h1>
+            <h1>{({ inicio: "Seu ritmo, sua comunidade", gravar: "Gravar atividade", treinador: "Treinador RunVibe", pessoas: "Encontre pessoas", clubes: "Clubes", provas: "Calendário de provas", perfil: "Seu perfil" } as Record<View,string>)[view]}</h1>
           </div>
           <div className="top-actions">
             <button className="icon-button" onClick={() => notify("Nenhuma nova notificação.")} aria-label="Notificações">♢</button>
             <button className="avatar" onClick={() => setView("perfil")}>LM</button>
           </div>
         </header>
-        {view === "inicio" && <Dashboard onRecord={() => setView("gravar")} />}
+        {view === "inicio" && <Dashboard onRecord={() => setView("gravar")} onCoach={() => setView("treinador")} notify={notify} />}
         {view === "gravar" && <Recorder notify={notify} />}
         {view === "treinador" && <Coach notify={notify} />}
+        {view === "pessoas" && <People notify={notify} />}
         {view === "clubes" && <Clubs notify={notify} />}
         {view === "provas" && <Races notify={notify} />}
         {view === "perfil" && <Profile onLogout={() => { localStorage.removeItem("runvibe.token"); setAuthenticated(false); }} />}
@@ -113,7 +115,7 @@ export default function Home() {
         <Nav active={view === "treinador"} icon="✦" label="Treinos" onClick={() => setView("treinador")} />
         <button className="record-tab" onClick={() => setView("gravar")}>●</button>
         <Nav active={view === "clubes"} icon="◎" label="Clubes" onClick={() => setView("clubes")} />
-        <Nav active={view === "perfil"} icon="○" label="Perfil" onClick={() => setView("perfil")} />
+        <Nav active={view === "pessoas"} icon="◉" label="Pessoas" onClick={() => setView("pessoas")} />
       </div>
       {toast && <div className="toast">{toast}</div>}
     </div>
@@ -166,15 +168,17 @@ function Login({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-function Dashboard({ onRecord }: { onRecord: () => void }) {
+function Dashboard({ onRecord, onCoach, notify }: { onRecord: () => void; onCoach: () => void; notify: (m:string) => void }) {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
+  const loadFeed = () => {
+    setLoading(true);
     api("feed?size=10").then((r) => setFeed(r.content || [])).catch(() => {
       const drafts: Draft[] = JSON.parse(localStorage.getItem("runvibe.drafts") || "[]");
       setFeed(drafts.map((d) => ({ title: "Atividade salva no aparelho", sportType: d.sportType, totalDistanceMeters: d.distance, elapsedTimeSeconds: d.elapsed, createdAt: d.startTime })));
     }).finally(() => setLoading(false));
-  }, []);
+  };
+  useEffect(() => { loadFeed(); }, []);
   const total = feed.reduce((sum, a) => sum + (a.totalDistanceMeters || 0), 0);
   return (
     <div className="content-grid">
@@ -188,20 +192,23 @@ function Dashboard({ onRecord }: { onRecord: () => void }) {
         <Stat label="TEMPO ATIVO" value={clock(feed.reduce((s,a) => s + (a.elapsedTimeSeconds || 0), 0))} trend="em movimento" />
       </section>
       <section className="feed-section">
-        <div className="section-title"><div><p className="eyebrow">COMUNIDADE</p><h2>Atividades recentes</h2></div><button className="text-button">Atualizar</button></div>
+        <div className="section-title"><div><p className="eyebrow">COMUNIDADE</p><h2>Atividades recentes</h2></div><button className="text-button" onClick={loadFeed}>Atualizar</button></div>
         {loading ? <div className="empty-card">Carregando sua comunidade…</div> : feed.length === 0 ? <div className="empty-card"><strong>Sua jornada começa aqui.</strong><span>Grave a primeira atividade ou encontre amigos.</span><button className="primary" onClick={onRecord}>Gravar agora</button></div> :
-          feed.map((a, i) => <ActivityCard key={a.id || i} activity={a} />)}
+          feed.map((a, i) => <ActivityCard key={a.id || i} activity={a} notify={notify} />)}
       </section>
       <aside className="right-rail">
-        <div className="rail-card accent"><p className="eyebrow">TREINO DO DIA</p><h3>Corrida leve</h3><strong>35 min</strong><p>Ritmo confortável, respiração controlada.</p><button className="secondary">Ver treino</button></div>
+        <div className="rail-card accent"><p className="eyebrow">TREINO DO DIA</p><h3>Corrida leve</h3><strong>35 min</strong><p>Ritmo confortável, respiração controlada.</p><button className="secondary" onClick={onCoach}>Ver treino</button></div>
         <div className="rail-card"><p className="eyebrow">PRÓXIMA PROVA</p><h3>Maratona do Rio</h3><p>Rio de Janeiro · Junho</p><div className="countdown"><strong>42</strong><span>dias</span></div></div>
       </aside>
     </div>
   );
 }
 function Stat({ label, value, trend }: { label: string; value: string; trend: string }) { return <div className="stat-card"><span>{label}</span><strong>{value}</strong><small>{trend}</small></div>; }
-function ActivityCard({ activity }: { activity: FeedItem }) {
-  return <article className="activity-card"><div className="activity-head"><div className="mini-avatar">R</div><div><strong>{activity.userName || "Você"}</strong><span>{new Date(activity.createdAt || Date.now()).toLocaleDateString("pt-BR", { day:"2-digit", month:"long" })}</span></div><span className="sport-pill">{activity.sportType === "CYCLING" ? "Ciclismo" : "Corrida"}</span></div><h3>{activity.title || "Corrida ao ar livre"}</h3><div className="activity-map"><div className="route-line" /></div><div className="activity-metrics"><span><b>{((activity.totalDistanceMeters || 0)/1000).toFixed(2)}</b> km</span><span><b>{clock(activity.elapsedTimeSeconds || 0)}</b> tempo</span><span><b>{pace(activity.averagePaceSecondsPerKm || 0)}</b> ritmo</span></div><div className="social-row"><button>♡ Kudos</button><button>○ Comentar</button><button>↗ Compartilhar</button></div></article>;
+function ActivityCard({ activity, notify }: { activity: FeedItem; notify:(m:string)=>void }) {
+  const [liked,setLiked]=useState(false);
+  async function kudos(){ if(!activity.id) return notify("Esta atividade ainda está apenas no aparelho."); try{const r=await api(`activities/${activity.id}/kudos`,{method:"POST"});setLiked(r.active);notify(r.active?"Kudos enviado!":"Kudos removido.");}catch(e){notify(e instanceof Error?e.message:"Falha ao enviar Kudos.");}}
+  async function share(){const text=`${activity.title || "Atividade"} · ${((activity.totalDistanceMeters||0)/1000).toFixed(2)} km no RunVibe`;if(navigator.share) await navigator.share({title:"RunVibe",text});else{await navigator.clipboard.writeText(text);notify("Resumo copiado.");}}
+  return <article className="activity-card"><div className="activity-head"><div className="mini-avatar">R</div><div><strong>{activity.userName || "Você"}</strong><span>{new Date(activity.createdAt || Date.now()).toLocaleDateString("pt-BR", { day:"2-digit", month:"long" })}</span></div><span className="sport-pill">{activity.sportType === "CYCLING" ? "Ciclismo" : "Corrida"}</span></div><h3>{activity.title || "Corrida ao ar livre"}</h3><div className="activity-map"><div className="route-line" /></div><div className="activity-metrics"><span><b>{((activity.totalDistanceMeters || 0)/1000).toFixed(2)}</b> km</span><span><b>{clock(activity.elapsedTimeSeconds || 0)}</b> tempo</span><span><b>{pace(activity.averagePaceSecondsPerKm || 0)}</b> ritmo</span></div><div className="social-row"><button className={liked?"liked":""} onClick={kudos}>{liked?"♥":"♡"} Kudos</button><button onClick={()=>notify("Comentários serão liberados quando a API social estiver publicada.")}>○ Comentar</button><button onClick={share}>↗ Compartilhar</button></div></article>;
 }
 
 function Recorder({ notify }: { notify: (m: string) => void }) {
@@ -285,9 +292,31 @@ function Coach({ notify }: { notify:(m:string)=>void }) {
     ["Fartlek","10 min leve + 8 × (1 min rápido / 1 min livre)"],
     ["Longão",`${Math.min(goal==="21 km"?18:10,km*.45).toFixed(1)} km · esforço fácil`],
   ],[goal,level,days,km]);
-  return <div className="coach-grid"><section className="form-card"><p className="eyebrow">PLANO PERSONALIZADO</p><h2>Conte ao treinador onde você quer chegar.</h2><label>Objetivo<select value={goal} onChange={e=>setGoal(e.target.value)}><option>5 km</option><option>10 km</option><option>21 km</option><option>42 km</option></select></label><label>Nível<select value={level} onChange={e=>setLevel(e.target.value)}><option>Iniciante</option><option>Intermediário</option><option>Avançado</option></select></label><label>Dias por semana <b>{days}</b><input type="range" min="2" max="6" value={days} onChange={e=>setDays(+e.target.value)} /></label><label>Volume atual <b>{km} km/semana</b><input type="range" min="5" max="100" step="5" value={km} onChange={e=>setKm(+e.target.value)} /></label><button className="primary full" onClick={()=>{setGenerated(true);notify("Plano personalizado criado.");}}>✦ Criar meu plano</button></section><section className="plan-card"><p className="eyebrow">SEMANA 1</p><h2>{generated?"Seu plano inicial":"Prévia do seu plano"}</h2>{plan.map((p,i)=><div className="workout-row" key={p[0]}><span>{i+1}</span><div><strong>{p[0]}</strong><p>{p[1]}</p></div><button>›</button></div>)}<small>Recomendação esportiva, não médica. Ajuste a carga em caso de dor ou mal-estar.</small></section></div>;
+  return <div className="coach-grid"><section className="form-card"><p className="eyebrow">PLANO PERSONALIZADO</p><h2>Conte ao treinador onde você quer chegar.</h2><label>Objetivo<select value={goal} onChange={e=>setGoal(e.target.value)}><option>5 km</option><option>10 km</option><option>21 km</option><option>42 km</option></select></label><label>Nível<select value={level} onChange={e=>setLevel(e.target.value)}><option>Iniciante</option><option>Intermediário</option><option>Avançado</option></select></label><label>Dias por semana <b>{days}</b><input type="range" min="2" max="6" value={days} onChange={e=>setDays(+e.target.value)} /></label><label>Volume atual <b>{km} km/semana</b><input type="range" min="5" max="100" step="5" value={km} onChange={e=>setKm(+e.target.value)} /></label><button className="primary full" onClick={()=>{setGenerated(true);localStorage.setItem("runvibe.plan",JSON.stringify({goal,level,days,km,plan}));notify("Plano personalizado criado e salvo.");}}>✦ Criar meu plano</button></section><section className="plan-card"><p className="eyebrow">SEMANA 1</p><h2>{generated?"Seu plano inicial":"Prévia do seu plano"}</h2>{plan.map((p,i)=><div className="workout-row" key={p[0]}><span>{i+1}</span><div><strong>{p[0]}</strong><p>{p[1]}</p></div><button aria-label={`Detalhes de ${p[0]}`} onClick={()=>notify(`${p[0]}: ${p[1]}`)}>›</button></div>)}<small>Recomendação esportiva, não médica. Ajuste a carga em caso de dor ou mal-estar.</small></section></div>;
+}
+type Person = {id:string;name:string;email:string;bio?:string;profilePictureUrl?:string;followersCount:number;followingCount:number;followedByMe:boolean};
+function People({notify}:{notify:(m:string)=>void}) {
+  const [query,setQuery]=useState(""),[people,setPeople]=useState<Person[]>([]),[loading,setLoading]=useState(true);
+  async function search(value=query){setLoading(true);try{setPeople(await api(`users/search?query=${encodeURIComponent(value.trim())}`));}catch(e){notify(e instanceof Error?e.message:"Não foi possível carregar pessoas.");}finally{setLoading(false);}}
+  useEffect(()=>{search("");},[]);
+  useEffect(()=>{const id=setTimeout(()=>search(query),350);return()=>clearTimeout(id);},[query]);
+  async function follow(person:Person){try{const r=await api(`users/${person.id}/follow`,{method:"POST"});setPeople(list=>list.map(p=>p.id===person.id?{...p,followedByMe:r.active,followersCount:Math.max(0,p.followersCount+(r.active?1:-1))}:p));notify(r.active?`Você agora segue ${person.name}.`:`Você deixou de seguir ${person.name}.`);}catch(e){notify(e instanceof Error?e.message:"Não foi possível atualizar.");}}
+  return <section className="people-page"><div className="people-hero"><div><p className="eyebrow">COMUNIDADE RUNVIBE</p><h2>Treinar junto muda tudo.</h2><p>Descubra pessoas cadastradas, acompanhe suas atividades e compartilhe evolução.</p></div><div className="people-count"><strong>{people.length}</strong><span>pessoas encontradas</span></div></div><div className="people-toolbar"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar por nome ou e-mail" aria-label="Buscar pessoas"/><button className="primary" onClick={()=>search()}>Buscar</button></div>{loading?<div className="empty-card">Buscando pessoas…</div>:people.length===0?<div className="empty-card"><strong>Nenhuma pessoa encontrada.</strong><span>Tente outro nome ou e-mail.</span></div>:<div className="people-grid">{people.map(person=><article className="person-card" key={person.id}><div className="person-avatar">{person.name.slice(0,2).toUpperCase()}</div><div className="person-info"><h3>{person.name}</h3><p>{person.bio || person.email}</p><span>{person.followersCount} seguidores · {person.followingCount} seguindo</span></div><button className={person.followedByMe?"secondary":"primary"} onClick={()=>follow(person)}>{person.followedByMe?"Seguindo":"Seguir"}</button></article>)}</div>}</section>;
 }
 function Clubs({notify}:{notify:(m:string)=>void}) { const [joined,setJoined]=useState<string[]>(()=>JSON.parse(localStorage.getItem("runvibe.clubs")||"[]")); const clubs=[["RunVibe Rio","Rio de Janeiro","1.284"],["Longão de Domingo","Brasil","846"],["Pedal RunVibe","Brasil","612"]]; const toggle=(n:string)=>{const next=joined.includes(n)?joined.filter(x=>x!==n):[...joined,n];setJoined(next);localStorage.setItem("runvibe.clubs",JSON.stringify(next));notify(joined.includes(n)?"Você saiu do clube.":"Bem-vindo ao clube!");}; return <CardGrid eyebrow="ENCONTRE SUA TRIBO" title="Clubes em destaque">{clubs.map(c=><article className="club-card" key={c[0]}><div className="club-cover">RV</div><h3>{c[0]}</h3><p>{c[1]} · {c[2]} membros</p><button className={joined.includes(c[0])?"secondary":"primary"} onClick={()=>toggle(c[0])}>{joined.includes(c[0])?"Participando":"Participar"}</button></article>)}</CardGrid>; }
 function Races({notify}:{notify:(m:string)=>void}) { const races=[["Maratona do Rio","Rio de Janeiro","21 JUN","5K · 10K · 21K · 42K"],["São Silvestre","São Paulo","31 DEZ","15K"],["Meia de Floripa","Florianópolis","23 AGO","5K · 21K"]]; return <CardGrid eyebrow="CALENDÁRIO NACIONAL" title="Encontre seu próximo desafio">{races.map(r=><article className="race-card" key={r[0]}><div className="race-date">{r[2]}</div><div><h3>{r[0]}</h3><p>{r[1]}</p><strong>{r[3]}</strong></div><button className="secondary" onClick={()=>notify("Abriremos a inscrição oficial em uma nova página.")}>Ver prova</button></article>)}</CardGrid>; }
 function CardGrid({eyebrow,title,children}:{eyebrow:string;title:string;children:React.ReactNode}) { return <section className="directory"><p className="eyebrow">{eyebrow}</p><h2>{title}</h2><div className="card-grid">{children}</div></section>; }
-function Profile({onLogout}:{onLogout:()=>void}) { const [profile,setProfile]=useState({name:"Corredor RunVibe",bio:"Em busca do próximo quilômetro."}); useEffect(()=>{api("users/me").then(p=>setProfile({name:p.name||profile.name,bio:p.bio||profile.bio})).catch(()=>undefined);},[]); return <div className="profile-layout"><section className="profile-card"><div className="profile-avatar">RV</div><h2>{profile.name}</h2><p>{profile.bio}</p><div className="profile-numbers"><span><b>0</b> seguidores</span><span><b>0</b> seguindo</span></div><button className="secondary">Editar perfil</button></section><section className="settings-card"><h3>Conta e preferências</h3><button>Privacidade <span>›</span></button><button>Notificações <span>›</span></button><button>Dispositivos e relógios <span>›</span></button><button>Dados e sincronização <span>›</span></button><button className="danger-text" onClick={onLogout}>Sair da conta</button></section></div>; }
+function Profile({onLogout}:{onLogout:()=>void}) {
+  const [profile,setProfile]=useState({name:"Corredor RunVibe",bio:"Em busca do próximo quilômetro.",followersCount:0,followingCount:0,profilePictureUrl:""}),[editing,setEditing]=useState(false),[message,setMessage]=useState(""),[localPhoto,setLocalPhoto]=useState("");
+  useEffect(()=>{setLocalPhoto(localStorage.getItem("runvibe.profilePhoto")||"");api("users/me").then(p=>setProfile({...profile,...p})).catch(()=>setMessage("Perfil disponível em modo offline."));},[]);
+  function choosePhoto(file?:File){
+    if(!file)return;
+    if(!file.type.startsWith("image/"))return setMessage("Escolha uma imagem válida.");
+    if(file.size>8*1024*1024)return setMessage("A foto deve ter no máximo 8 MB.");
+    const reader=new FileReader();
+    reader.onload=()=>{const image=new Image();image.onload=()=>{const size=512,canvas=document.createElement("canvas");canvas.width=size;canvas.height=size;const ctx=canvas.getContext("2d");if(!ctx)return;const side=Math.min(image.width,image.height),sx=(image.width-side)/2,sy=(image.height-side)/2;ctx.drawImage(image,sx,sy,side,side,0,0,size,size);const data=canvas.toDataURL("image/jpeg",.82);localStorage.setItem("runvibe.profilePhoto",data);setLocalPhoto(data);setMessage("Foto atualizada neste aparelho.");};image.src=String(reader.result);};
+    reader.readAsDataURL(file);
+  }
+  async function save(event:FormEvent<HTMLFormElement>){event.preventDefault();const data=new FormData(event.currentTarget);try{const updated=await api("users/me",{method:"PATCH",body:JSON.stringify({name:data.get("name"),bio:data.get("bio"),profilePictureUrl:profile.profilePictureUrl||null})});setProfile({...profile,...updated});setEditing(false);setMessage("Perfil atualizado.");}catch(e){setMessage(e instanceof Error?e.message:"Falha ao atualizar.");}}
+  return <div className="profile-layout"><section className="profile-card"><div className="profile-photo-wrap">{localPhoto||profile.profilePictureUrl?<img className="profile-photo" src={localPhoto||profile.profilePictureUrl} alt={`Foto de ${profile.name}`}/>:<div className="profile-avatar">{profile.name.slice(0,2).toUpperCase()}</div>}<label className="photo-button" title="Alterar foto">＋<input type="file" accept="image/jpeg,image/png,image/webp" capture="user" onChange={e=>choosePhoto(e.target.files?.[0])}/></label></div>{editing?<form className="profile-form" onSubmit={save}><label>Nome<input name="name" defaultValue={profile.name} minLength={2} required/></label><label>Biografia<textarea name="bio" defaultValue={profile.bio} maxLength={300}/></label><div><button type="button" className="secondary" onClick={()=>setEditing(false)}>Cancelar</button><button className="primary">Salvar alterações</button></div></form>:<><h2>{profile.name}</h2><p>{profile.bio}</p><div className="profile-numbers"><span><b>{profile.followersCount}</b> seguidores</span><span><b>{profile.followingCount}</b> seguindo</span></div><button className="secondary" onClick={()=>setEditing(true)}>Editar perfil</button></>}{message&&<small className="profile-message">{message}</small>}</section><section className="settings-card"><h3>Conta e preferências</h3><button onClick={()=>setMessage("Seu perfil é visível para a comunidade RunVibe.")}>Privacidade <span>›</span></button><button onClick={()=>setMessage("As notificações do navegador dependem da sua permissão.")}>Notificações <span>›</span></button><button onClick={()=>setMessage("A integração com Health Connect e Stratos 4 está em desenvolvimento.")}>Dispositivos e relógios <span>›</span></button><button onClick={()=>setMessage("Atividades pendentes permanecem protegidas neste aparelho.")}>Dados e sincronização <span>›</span></button><button className="danger-text" onClick={onLogout}>Sair da conta</button></section></div>;
+}
