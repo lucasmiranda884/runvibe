@@ -9,10 +9,12 @@ type Draft = {
   distance: number; points: Point[]; sportType: string; pending: boolean;
 };
 type FeedItem = {
-  id?: string; userName?: string; title?: string; sportType?: string;
+  id?: string; userId?: string; userName?: string; title?: string; description?: string; sportType?: string;
   totalDistanceMeters?: number; elapsedTimeSeconds?: number;
-  averagePaceSecondsPerKm?: number; createdAt?: string;
+  movingTimeSeconds?: number; averagePaceSecondsPerKm?: number; elevationGainMeters?: number; createdAt?: string;
+  splits?: ActivitySplit[];
 };
+type ActivitySplit = { kilometer:number; distanceMeters:number; durationSeconds:number; paceSecondsPerKm:number };
 type ActivityComment = {
   id: string; userId: string; userName: string; content: string; createdAt: string;
 };
@@ -174,6 +176,8 @@ function Login({ onSuccess }: { onSuccess: () => void }) {
 function Dashboard({ onRecord, onCoach, notify }: { onRecord: () => void; onCoach: () => void; notify: (m:string) => void }) {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mode,setMode]=useState<"community"|"mine">("community");
+  const [myId,setMyId]=useState("");
   const loadFeed = () => {
     setLoading(true);
     api("feed?size=10").then((r) => setFeed(r.content || [])).catch(() => {
@@ -181,8 +185,9 @@ function Dashboard({ onRecord, onCoach, notify }: { onRecord: () => void; onCoac
       setFeed(drafts.map((d) => ({ title: "Atividade salva no aparelho", sportType: d.sportType, totalDistanceMeters: d.distance, elapsedTimeSeconds: d.elapsed, createdAt: d.startTime })));
     }).finally(() => setLoading(false));
   };
-  useEffect(() => { loadFeed(); }, []);
-  const total = feed.reduce((sum, a) => sum + (a.totalDistanceMeters || 0), 0);
+  useEffect(() => { loadFeed(); api("users/me").then(profile=>setMyId(profile.id||"")).catch(()=>undefined); }, []);
+  const visibleFeed=mode==="mine"&&myId?feed.filter(activity=>activity.userId===myId):feed;
+  const total = visibleFeed.reduce((sum, a) => sum + (a.totalDistanceMeters || 0), 0);
   return (
     <div className="content-grid">
       <section className="hero-card">
@@ -191,13 +196,13 @@ function Dashboard({ onRecord, onCoach, notify }: { onRecord: () => void; onCoac
       </section>
       <section className="stats-row">
         <Stat label="DISTÂNCIA" value={`${(total / 1000).toFixed(1)} km`} trend="esta semana" />
-        <Stat label="ATIVIDADES" value={`${feed.length}`} trend="registradas" />
-        <Stat label="TEMPO ATIVO" value={clock(feed.reduce((s,a) => s + (a.elapsedTimeSeconds || 0), 0))} trend="em movimento" />
+        <Stat label="ATIVIDADES" value={`${visibleFeed.length}`} trend="registradas" />
+        <Stat label="TEMPO ATIVO" value={clock(visibleFeed.reduce((s,a) => s + (a.elapsedTimeSeconds || 0), 0))} trend="em movimento" />
       </section>
       <section className="feed-section">
-        <div className="section-title"><div><p className="eyebrow">COMUNIDADE</p><h2>Atividades recentes</h2></div><button className="text-button" onClick={loadFeed}>Atualizar</button></div>
-        {loading ? <div className="empty-card">Carregando sua comunidade…</div> : feed.length === 0 ? <div className="empty-card"><strong>Sua jornada começa aqui.</strong><span>Grave a primeira atividade ou encontre amigos.</span><button className="primary" onClick={onRecord}>Gravar agora</button></div> :
-          feed.map((a, i) => <ActivityCard key={a.id || i} activity={a} notify={notify} />)}
+        <div className="section-title"><div><p className="eyebrow">{mode==="mine"?"HISTÓRICO PESSOAL":"COMUNIDADE"}</p><h2>{mode==="mine"?"Meus treinos":"Atividades recentes"}</h2></div><div className="feed-actions"><button className={mode==="community"?"secondary selected":"text-button"} onClick={()=>setMode("community")}>Colegas</button><button className={mode==="mine"?"secondary selected":"text-button"} onClick={()=>setMode("mine")}>Meus treinos</button><button className="text-button" onClick={loadFeed}>Atualizar</button></div></div>
+        {loading ? <div className="empty-card">Carregando atividades…</div> : visibleFeed.length === 0 ? <div className="empty-card"><strong>{mode==="mine"?"Nenhum treino sincronizado.":"Sua jornada começa aqui."}</strong><span>{mode==="mine"?"Finalize e salve uma atividade para consultar suas parciais.":"Grave a primeira atividade ou encontre amigos."}</span><button className="primary" onClick={onRecord}>Gravar agora</button></div> :
+          visibleFeed.map((a, i) => <ActivityCard key={a.id || i} activity={a} notify={notify} />)}
       </section>
       <aside className="right-rail">
         <div className="rail-card accent"><p className="eyebrow">TREINO DO DIA</p><h3>Corrida leve</h3><strong>35 min</strong><p>Ritmo confortável, respiração controlada.</p><button className="secondary" onClick={onCoach}>Ver treino</button></div>
@@ -214,6 +219,8 @@ function ActivityCard({ activity, notify }: { activity: FeedItem; notify:(m:stri
   const [commentsLoading,setCommentsLoading]=useState(false);
   const [comment,setComment]=useState("");
   const [sending,setSending]=useState(false);
+  const [details,setDetails]=useState<FeedItem|null>(null);
+  const [detailsLoading,setDetailsLoading]=useState(false);
   async function kudos(){ if(!activity.id) return notify("Esta atividade ainda está apenas no aparelho."); try{const r=await api(`activities/${activity.id}/kudos`,{method:"POST"});setLiked(r.active);notify(r.active?"Kudos enviado!":"Kudos removido.");}catch(e){notify(e instanceof Error?e.message:"Falha ao enviar Kudos.");}}
   async function share(){const text=`${activity.title || "Atividade"} · ${((activity.totalDistanceMeters||0)/1000).toFixed(2)} km no RunVibe`;if(navigator.share) await navigator.share({title:"RunVibe",text});else{await navigator.clipboard.writeText(text);notify("Resumo copiado.");}}
   async function toggleComments(){
@@ -235,12 +242,27 @@ function ActivityCard({ activity, notify }: { activity: FeedItem; notify:(m:stri
     }catch(e){notify(e instanceof Error?e.message:"Não foi possível comentar.");}
     finally{setSending(false);}
   }
+  async function toggleDetails(){
+    if(details){setDetails(null);return;}
+    if(!activity.id)return notify("Este treino ainda está somente neste aparelho.");
+    setDetailsLoading(true);
+    try{setDetails(await api(`activities/${activity.id}`));}
+    catch(e){notify(e instanceof Error?e.message:"Não foi possível abrir o treino.");}
+    finally{setDetailsLoading(false);}
+  }
   const sportLabel=({CYCLING:"Ciclismo",WALKING:"Caminhada",HIKING:"Trilha",RUNNING:"Corrida"} as Record<string,string>)[activity.sportType||"RUNNING"]||"Atividade";
   return <article className="activity-card">
     <div className="activity-head"><div className="mini-avatar">{(activity.userName||"Você").slice(0,1).toUpperCase()}</div><div><strong>{activity.userName || "Você"}</strong><span>{new Date(activity.createdAt || Date.now()).toLocaleDateString("pt-BR", { day:"2-digit", month:"long" })}</span></div><span className="sport-pill">{sportLabel}</span></div>
     <h3>{activity.title || `${sportLabel} ao ar livre`}</h3>
     <div className="activity-map"><div className="route-line" /></div>
     <div className="activity-metrics"><span><b>{((activity.totalDistanceMeters || 0)/1000).toFixed(2)}</b> km</span><span><b>{clock(activity.elapsedTimeSeconds || 0)}</b> tempo</span><span><b>{pace(activity.averagePaceSecondsPerKm || 0)}</b> ritmo</span></div>
+    <button className="activity-details-button" onClick={toggleDetails}>{details?"Ocultar detalhes":detailsLoading?"Carregando…":"Ver treino e parciais"} <span>›</span></button>
+    {details&&<section className="activity-details">
+      {details.description&&<p>{details.description}</p>}
+      <div className="detail-metrics"><span><small>Tempo em movimento</small><b>{clock(details.movingTimeSeconds||0)}</b></span><span><small>Ganho de elevação</small><b>{Math.round(details.elevationGainMeters||0)} m</b></span><span><small>Ritmo médio</small><b>{pace(details.averagePaceSecondsPerKm||0)}</b></span></div>
+      <h4>Parciais por quilômetro</h4>
+      {details.splits?.length?<div className="splits-table"><div className="split-head"><span>KM</span><span>Tempo</span><span>Ritmo</span></div>{details.splits.map(split=><div className="split-row" key={split.kilometer}><strong>{split.kilometer}</strong><span>{clock(split.durationSeconds)}</span><span>{pace(split.paceSecondsPerKm)}</span></div>)}</div>:<p className="comments-status">Não há parciais disponíveis para este treino.</p>}
+    </section>}
     <div className="social-row"><button className={liked?"liked":""} onClick={kudos}>{liked?"♥":"♡"} Kudos</button><button className={commentsOpen?"active":""} onClick={toggleComments}>○ {comments.length ? `${comments.length} comentário${comments.length===1?"":"s"}` : "Comentar"}</button><button onClick={share}>↗ Compartilhar</button></div>
     {commentsOpen&&<section className="comments-panel">
       {commentsLoading?<p className="comments-status">Carregando comentários…</p>:comments.length===0?<p className="comments-status">Seja a primeira pessoa a comentar este treino.</p>:<div className="comment-list">{comments.map(item=><div className="comment-item" key={item.id}><div className="comment-avatar">{item.userName.slice(0,1).toUpperCase()}</div><div><p><strong>{item.userName}</strong> {item.content}</p><time>{new Date(item.createdAt).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</time></div></div>)}</div>}
