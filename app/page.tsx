@@ -13,6 +13,9 @@ type FeedItem = {
   totalDistanceMeters?: number; elapsedTimeSeconds?: number;
   averagePaceSecondsPerKm?: number; createdAt?: string;
 };
+type ActivityComment = {
+  id: string; userId: string; userName: string; content: string; createdAt: string;
+};
 
 const API = "/api/runvibe";
 const sports = [
@@ -206,9 +209,44 @@ function Dashboard({ onRecord, onCoach, notify }: { onRecord: () => void; onCoac
 function Stat({ label, value, trend }: { label: string; value: string; trend: string }) { return <div className="stat-card"><span>{label}</span><strong>{value}</strong><small>{trend}</small></div>; }
 function ActivityCard({ activity, notify }: { activity: FeedItem; notify:(m:string)=>void }) {
   const [liked,setLiked]=useState(false);
+  const [commentsOpen,setCommentsOpen]=useState(false);
+  const [comments,setComments]=useState<ActivityComment[]>([]);
+  const [commentsLoading,setCommentsLoading]=useState(false);
+  const [comment,setComment]=useState("");
+  const [sending,setSending]=useState(false);
   async function kudos(){ if(!activity.id) return notify("Esta atividade ainda está apenas no aparelho."); try{const r=await api(`activities/${activity.id}/kudos`,{method:"POST"});setLiked(r.active);notify(r.active?"Kudos enviado!":"Kudos removido.");}catch(e){notify(e instanceof Error?e.message:"Falha ao enviar Kudos.");}}
   async function share(){const text=`${activity.title || "Atividade"} · ${((activity.totalDistanceMeters||0)/1000).toFixed(2)} km no RunVibe`;if(navigator.share) await navigator.share({title:"RunVibe",text});else{await navigator.clipboard.writeText(text);notify("Resumo copiado.");}}
-  return <article className="activity-card"><div className="activity-head"><div className="mini-avatar">R</div><div><strong>{activity.userName || "Você"}</strong><span>{new Date(activity.createdAt || Date.now()).toLocaleDateString("pt-BR", { day:"2-digit", month:"long" })}</span></div><span className="sport-pill">{activity.sportType === "CYCLING" ? "Ciclismo" : "Corrida"}</span></div><h3>{activity.title || "Corrida ao ar livre"}</h3><div className="activity-map"><div className="route-line" /></div><div className="activity-metrics"><span><b>{((activity.totalDistanceMeters || 0)/1000).toFixed(2)}</b> km</span><span><b>{clock(activity.elapsedTimeSeconds || 0)}</b> tempo</span><span><b>{pace(activity.averagePaceSecondsPerKm || 0)}</b> ritmo</span></div><div className="social-row"><button className={liked?"liked":""} onClick={kudos}>{liked?"♥":"♡"} Kudos</button><button onClick={()=>notify("Comentários serão liberados quando a API social estiver publicada.")}>○ Comentar</button><button onClick={share}>↗ Compartilhar</button></div></article>;
+  async function toggleComments(){
+    const opening=!commentsOpen; setCommentsOpen(opening);
+    if(!opening || !activity.id || comments.length) return;
+    setCommentsLoading(true);
+    try{setComments(await api(`activities/${activity.id}/comments`));}
+    catch(e){notify(e instanceof Error?e.message:"Não foi possível carregar os comentários.");}
+    finally{setCommentsLoading(false);}
+  }
+  async function sendComment(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();
+    const content=comment.trim();
+    if(!activity.id || !content || sending) return;
+    setSending(true);
+    try{
+      const created=await api(`activities/${activity.id}/comments`,{method:"POST",body:JSON.stringify({content})});
+      setComments(old=>[...old,created]); setComment(""); notify("Comentário publicado.");
+    }catch(e){notify(e instanceof Error?e.message:"Não foi possível comentar.");}
+    finally{setSending(false);}
+  }
+  const sportLabel=({CYCLING:"Ciclismo",WALKING:"Caminhada",HIKING:"Trilha",RUNNING:"Corrida"} as Record<string,string>)[activity.sportType||"RUNNING"]||"Atividade";
+  return <article className="activity-card">
+    <div className="activity-head"><div className="mini-avatar">{(activity.userName||"Você").slice(0,1).toUpperCase()}</div><div><strong>{activity.userName || "Você"}</strong><span>{new Date(activity.createdAt || Date.now()).toLocaleDateString("pt-BR", { day:"2-digit", month:"long" })}</span></div><span className="sport-pill">{sportLabel}</span></div>
+    <h3>{activity.title || `${sportLabel} ao ar livre`}</h3>
+    <div className="activity-map"><div className="route-line" /></div>
+    <div className="activity-metrics"><span><b>{((activity.totalDistanceMeters || 0)/1000).toFixed(2)}</b> km</span><span><b>{clock(activity.elapsedTimeSeconds || 0)}</b> tempo</span><span><b>{pace(activity.averagePaceSecondsPerKm || 0)}</b> ritmo</span></div>
+    <div className="social-row"><button className={liked?"liked":""} onClick={kudos}>{liked?"♥":"♡"} Kudos</button><button className={commentsOpen?"active":""} onClick={toggleComments}>○ {comments.length ? `${comments.length} comentário${comments.length===1?"":"s"}` : "Comentar"}</button><button onClick={share}>↗ Compartilhar</button></div>
+    {commentsOpen&&<section className="comments-panel">
+      {commentsLoading?<p className="comments-status">Carregando comentários…</p>:comments.length===0?<p className="comments-status">Seja a primeira pessoa a comentar este treino.</p>:<div className="comment-list">{comments.map(item=><div className="comment-item" key={item.id}><div className="comment-avatar">{item.userName.slice(0,1).toUpperCase()}</div><div><p><strong>{item.userName}</strong> {item.content}</p><time>{new Date(item.createdAt).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</time></div></div>)}</div>}
+      {activity.id&&<form className="comment-form" onSubmit={sendComment}><input value={comment} onChange={e=>setComment(e.target.value)} maxLength={1000} placeholder="Escreva um comentário…" aria-label="Comentário"/><button className="primary" disabled={sending||!comment.trim()}>{sending?"Enviando…":"Publicar"}</button></form>}
+    </section>}
+  </article>;
 }
 
 function Recorder({ notify }: { notify: (m: string) => void }) {
